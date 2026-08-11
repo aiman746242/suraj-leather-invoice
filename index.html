@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suraj Leather - Invoice App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Include jsPDF and html2canvas for direct downloading -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body class="bg-gray-100 p-4">
+
+    <!-- App Navigation Header (No Print) -->
+    <div class="max-w-xl mx-auto mb-4 flex justify-between items-center no-print bg-white p-3 rounded-xl shadow">
+        <h1 class="font-bold text-gray-800 text-lg">Suraj Leather App</h1>
+        <div class="space-x-2">
+            <button onclick="switchTab('form')" id="tabFormBtn" class="bg-blue-600 text-white px-3 py-1.5 text-xs font-bold rounded-lg shadow">New Invoice</button>
+            <button onclick="switchTab('history')" id="tabHistoryBtn" class="bg-gray-200 text-gray-700 px-3 py-1.5 text-xs font-bold rounded-lg shadow">Saved Invoices (<span id="invoiceCount">0</span>)</button>
+        </div>
+    </div>
+
+    <!-- SAVED INVOICES / HISTORY TAB -->
+    <div id="historyTab" class="max-w-xl mx-auto bg-white rounded-xl shadow-lg p-5 no-print mb-6 hidden">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Saved Invoices History</h2>
+        <div id="savedInvoicesList" class="space-y-3"></div>
+    </div>
+
+    <!-- INPUT FORM TAB -->
+    <div id="formTab" class="max-w-xl mx-auto bg-white rounded-xl shadow-lg p-5 no-print mb-6">
+        <h2 class="text-xl font-bold text-center text-gray-800 mb-4">Create Tax Invoice</h2>
+
+        <form id="invoiceForm" class="space-y-4">
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700">Invoice Date</label>
+                    <input type="text" id="invDate" class="w-full p-2 border rounded-lg" value="06/06/26" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700">Invoice No</label>
+                    <input type="text" id="invNo" class="w-full p-2 border rounded-lg" value="12/26/27" required>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-700">Select Customer (Bill To)</label>
+                <select id="billToSelect" class="w-full p-2 border rounded-lg bg-white mb-2 text-sm" onchange="fillCustomerDetails()">
+                    <option value="khaja">KHAJA MOIDEEN LEATHER CO</option>
+                    <option value="vaigai">VAIGAI LEATHER CORPORATION</option>
+                    <option value="united">UNITED LEATHER</option>
+                    <option value="other">Other Customer (Manual)</option>
+                </select>
+                <textarea id="billTo" class="w-full p-2 border rounded-lg text-sm" rows="3">UNITED LEATHER
+GSTIN: 33ASH PA2565K1ZV</textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-700">Delivery At</label>
+                <textarea id="deliveryAt" class="w-full p-2 border rounded-lg text-sm" rows="3">AASIYA CREATIONS
+CUTCHERY ROAD EXTENSION
+VANIYAMBADI TAMILNADU - 635751</textarea>
+            </div>
+            
+            <hr class="my-2">
+
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-sm font-bold text-gray-800">Items List</label>
+                    <button type="button" onclick="addItemRow()" class="bg-blue-600 text-white px-3 py-1 text-xs font-bold rounded-lg hover:bg-blue-700">+ Add Item</button>
+                </div>
+                
+                <div id="itemsContainer" class="space-y-3">
+                    <div class="item-row p-3 bg-gray-50 border rounded-lg relative space-y-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600">Particulars (Select Item)</label>
+                            <select class="item-name w-full p-1.5 border rounded text-sm bg-white" onchange="updateValues()">
+                                <option value="HEAVY WET GOAT SKIN">HEAVY WET GOAT SKIN</option>
+                                <option value="MEDIUM GOAT SKIN">MEDIUM GOAT SKIN</option>
+                                <option value="LIGHT GOAT SKIN">LIGHT GOAT SKIN</option>
+                                <option value="RAW SHEEP SKIN" selected>RAW SHEEP SKIN</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-4 gap-2">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600">HSN Code</label>
+                                <input type="text" class="item-hsn w-full p-1.5 border rounded text-sm" value="4102" oninput="updateValues()">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600">PCS</label>
+                                <input type="number" class="item-pcs w-full p-1.5 border rounded text-sm" value="789" oninput="updateValues()">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600">Rate (₹)</label>
+                                <input type="number" class="item-rate w-full p-1.5 border rounded text-sm" value="110" oninput="updateValues()">
+                            </div>
+                            <div class="flex items-end">
+                                <button type="button" onclick="removeItemRow(this)" class="w-full bg-red-500 text-white p-1.5 text-xs rounded hover:bg-red-600" disabled>Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="my-2">
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-700">Lorry Number</label>
+                <input type="text" id="lorryNo" class="w-full p-2 border rounded-lg" value="KA 01 AC 2489">
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 pt-2">
+                <button type="button" onclick="saveInvoiceToApp()" class="bg-indigo-600 text-white p-3 rounded-xl font-bold text-xs shadow hover:bg-indigo-700">
+                    Save 💾
+                </button>
+                <button type="button" onclick="downloadPDF()" class="bg-green-600 text-white p-3 rounded-xl font-bold text-xs shadow hover:bg-green-700">
+                    Download PDF 📥
+                </button>
+                <button type="button" onclick="printInvoice()" class="bg-gray-700 text-white p-3 rounded-xl font-bold text-xs shadow hover:bg-gray-800">
+                    Print 🖨️
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Invoice Preview Area -->
+    <div id="invoicePreviewBox" class="max-w-[700px] mx-auto bg-white p-6 shadow-md" style="font-family: Arial, sans-serif; font-size: 12px; color: #000;">
+        
+        <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #000;">
+            <tr>
+                <td colspan="2" style="border-bottom: 1.5px solid #000; text-align: center; font-weight: bold; font-size: 14px; padding: 6px;">TAX INVOICE</td>
+            </tr>
+            <tr>
+                <td style="border-right: 1.5px solid #000; border-bottom: 1.5px solid #000; padding: 8px; width: 50%; vertical-align: top;">
+                    <b>SURAJ LEATHER</b><br>
+                    #6089/A, Near Mutton Market<br>
+                    Budhwar peth, Miraj-416 410<br>
+                    Maharashtra<br>
+                    <b>GSTIN:</b> 27BHAPM4249R2ZP
+                </td>
+                <td style="border-bottom: 1.5px solid #000; padding: 8px; width: 50%; vertical-align: top;">
+                    <b>INVOICE DATE:</b> <span id="p_date">06/06/26</span><br><br>
+                    <b>INVOICE NO:</b> <span id="p_invNo">12/26/27</span>
+                </td>
+            </tr>
+            <tr>
+                <td style="border-right: 1.5px solid #000; border-bottom: 1.5px solid #000; padding: 8px; vertical-align: top;">
+                    <b>TO –</b> <span id="p_billTo" style="white-space: pre-line;">UNITED LEATHER
+GSTIN: 33ASH PA2565K1ZV</span>
+                </td>
+                <td style="border-bottom: 1.5px solid #000; padding: 8px; vertical-align: top;">
+                    <b>DELIVERY AT-</b> <span id="p_deliveryAt" style="white-space: pre-line;">AASIYA CREATIONS
+CUTCHERY ROAD EXTENSION
+VANIYAMBADI TAMILNADU - 635751</span>
+                </td>
+            </tr>
+        </table>
+
+        <table style="width: 100%; border-collapse: collapse; border-top: 1.5px solid #000; border-left: 1.5px solid #000; border-right: 1.5px solid #000; border-bottom: 1.5px solid #000; margin-top: -1.5px;">
+            <tr style="background-color: #f2f2f2;">
+                <th style="border-right: 1px solid #000; border-bottom: 1.5px solid #000; padding: 6px; width: 8%; text-align: center;">S.NO</th>
+                <th style="border-right: 1.5px solid #000; border-bottom: 1.5px solid #000; padding: 6px; width: 42%; text-align: left;">PARTICULARS</th>
+                <th style="border-right: 1.5px solid #000; border-bottom: 1.5px solid #000; padding: 6px; width: 15%; text-align: center;">HSN CODE</th>
+                <th style="border-right: 1.5px solid #000; border-bottom: 1.5px solid #000; padding: 6px; width: 10%; text-align: center;">PCS</th>
+                <th style="border-right: 1.5px solid #000; border-bottom: 1.5px solid #000; padding: 6px; width: 10%; text-align: center;">RATE</th>
+                <th style="border-bottom: 1.5px solid #000; padding: 6px; width: 15%; text-align: right;">AMOUNT</th>
+            </tr>
+            
+            <tbody id="p_itemsTableBody"></tbody>
+            
+            <tr>
+                <td style="border-right: 1px solid #000; border-bottom: 1.0px solid #000;"></td>
+                <td colspan="4" style="border-right: 1.5px solid #000; border-bottom: 1.0px solid #000;"></td>
+                <td style="border-bottom: 1.0px solid #000; text-align: right; font-weight: bold; padding: 6px;" id="p_subTotal">0.00</td>
+            </tr>
+
+            <tr>
+                <td style="border-right: 1px solid #000; border-bottom: 1.0px solid #000;"></td>
+                <td style="border-right: 1.5px solid #000; border-bottom: 1.0px solid #000; text-align: right; padding: 6px; font-weight: bold;">IGST 5%</td>
+                <td colspan="3" style="border-right: 1.5px solid #000; border-bottom: 1.0px solid #000;"></td>
+                <td style="border-bottom: 1.0px solid #000; text-align: right; padding: 6px;" id="p_igst">0.00</td>
+            </tr>
+            
+            <tr>
+                <td colspan="5" style="border-right: 1.5px solid #000; text-align: right; padding: 6px; font-weight: bold;">GRAND TOTAL</td>
+                <td style="text-align: right; padding: 6px; font-weight: bold;" id="p_grandTotal">0.00</td>
+            </tr>
+        </table>
+
+        <table style="width: 100%; border-collapse: collapse; border-left: 1.5px solid #000; border-right: 1.5px solid #000; border-bottom: 1.5px solid #000; margin-top: -1.5px;">
+            <tr>
+                <td style="border-bottom: 1px solid #000; padding: 7px;"><b>LORRY NUMBER:-</b> <span id="p_lorryNo">KA 01 AC 2489</span></td>
+            </tr>
+            <tr>
+                <td style="padding: 7px;"><b>RUPEES:-</b> <span id="p_rupeesWords">ZERO RUPEES ONLY</span></td>
+            </tr>
+        </table>
+
+        <table style="width: 100%; border-collapse: collapse; border-left: 1.5px solid #000; border-right: 1.5px solid #000; border-bottom: 1.5px solid #000; margin-top: -1.5px; height: 60px;">
+            <tr>
+                <td style="border-right: 1.5px solid #000; padding: 8px; width: 50%; vertical-align: bottom; font-weight: bold;">CUSTOMER'S SIGNATURE</td>
+                <td style="padding: 8px; width: 50%; vertical-align: bottom; text-align: right; font-weight: bold;">FOR SURAJ LEATHERS</td>
+            </tr>
+        </table>
+
+    </div>
+
+    <script>
+        function switchTab(tab) {
+            let formTab = document.getElementById('formTab');
+            let historyTab = document.getElementById('historyTab');
+            let tabFormBtn = document.getElementById('tabFormBtn');
+            let tabHistoryBtn = document.getElementById('tabHistoryBtn');
+
+            if (tab === 'form') {
+                formTab.classList.remove('hidden');
+                historyTab.classList.add('hidden');
+                tabFormBtn.className = "bg-blue-600 text-white px-3 py-1.5 text-xs font-bold rounded-lg shadow";
+                tabHistoryBtn.className = "bg-gray-200 text-gray-700 px-3 py-1.5 text-xs font-bold rounded-lg shadow";
+            } else {
+                formTab.classList.add('hidden');
+                historyTab.classList.remove('hidden');
+                tabHistoryBtn.className = "bg-blue-600 text-white px-3 py-1.5 text-xs font-bold rounded-lg shadow";
+                tabFormBtn.className = "bg-gray-200 text-gray-700 px-3 py-1.5 text-xs font-bold rounded-lg shadow";
+                renderSavedInvoices();
+            }
+        }
+
+        function fillCustomerDetails() {
+            let choice = document.getElementById('billToSelect').value;
+            if (choice === 'khaja') {
+                document.getElementById('billTo').value = `KHAJA MOIDEEN LEATHER CO\nNo-16/55.PERIANNA MAISTRY STREET PERIAMET\nCHENNAI-600003\nGSTIN 33AAJPP4740R1Z4`;
+                document.getElementById('deliveryAt').value = `KHAJA MOIDEEN LEATHER CO\nNO.89/5,PONMADHURAI ROAD, BEGUMBUR\nDINDIGUL- 624002`;
+            } else if (choice === 'vaigai') {
+                document.getElementById('billTo').value = `VAIGAI LEATHER CORPORATION\n41, perianna maistry street periamet\nChennai -600 003\nGSTIN:33AAAFV5714C1ZN`;
+                document.getElementById('deliveryAt').value = `VAIGAI LEATHER CORPORATION\n3/335, Ponmadhurai Road\nBegumbur Post\nDindigul-624 002`;
+            } else if (choice === 'united') {
+                document.getElementById('billTo').value = `UNITED LEATHER\nGSTIN: 33ASH PA2565K1ZV`;
+                document.getElementById('deliveryAt').value = `AASIYA CREATIONS\nCUTCHERY ROAD EXTENSION\nVANIYAMBADI TAMILNADU - 635751`;
+            }
+            updateValues();
+        }
+
+        function addItemRow() {
+            let container = document.getElementById('itemsContainer');
+            let rowHTML = `
+                <div class="item-row p-3 bg-gray-50 border rounded-lg relative space-y-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600">Particulars (Select Item)</label>
+                        <select class="item-name w-full p-1.5 border rounded text-sm bg-white" onchange="updateValues()">
+                            <option value="HEAVY WET GOAT SKIN">HEAVY WET GOAT SKIN</option>
+                            <option value="MEDIUM GOAT SKIN">MEDIUM GOAT SKIN</option>
+                            <option value="LIGHT GOAT SKIN">LIGHT GOAT SKIN</option>
+                            <option value="RAW SHEEP SKIN">RAW SHEEP SKIN</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-4 gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600">HSN Code</label>
+                            <input type="text" class="item-hsn w-full p-1.5 border rounded text-sm" value="4102" oninput="updateValues()">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600">PCS</label>
+                            <input type="number" class="item-pcs w-full p-1.5 border rounded text-sm" value="1" oninput="updateValues()">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600">Rate (₹)</label>
+                            <input type="number" class="item-rate w-full p-1.5 border rounded text-sm" value="100" oninput="updateValues()">
+                        </div>
+                        <div class="flex items-end">
+                            <button type="button" onclick="removeItemRow(this)" class="w-full bg-red-500 text-white p-1.5 text-xs rounded hover:bg-red-600">Remove</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', rowHTML);
+            updateValues();
+        }
+
+        function removeItemRow(btn) {
+            let row = btn.closest('.item-row');
+            row.remove();
+            updateValues();
+        }
+
+        function convertNumberToWords(amount) {
+            let words = ['', 'ONE ', 'TWO ', 'THREE ', 'FOUR ', 'FIVE ', 'SIX ', 'SEVEN ', 'EIGHT ', 'NINE ', 'TEN ', 'ELEVEN ', 'TWELVE ', 'THIRTEEN ', 'FOURTEEN ', 'FIFTEEN ', 'SIXTEEN ', 'SEVENTEEN ', 'EIGHTEEN ', 'NINETEEN '];
+            let tens = ['', '', 'TWENTY ', 'THIRTY ', 'FORTY ', 'FIFTY ', 'SIXTY ', 'SEVENTY ', 'EIGHTY ', 'NINETY '];
+
+            if ((amount = amount.toString()).length > 9) return 'OVERFLOW';
+            let n = ('000000000' + amount).slice(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+            if (!n) return;
+            let str = '';
+            str += (n[1] != 0) ? (words[Number(n[1])] || tens[n[1][0]] + words[n[1][1]]) + 'CRORE ' : '';
+            str += (n[2] != 0) ? (words[Number(n[2])] || tens[n[2][0]] + words[n[2][1]]) + 'LAKH ' : '';
+            str += (n[3] != 0) ? (words[Number(n[3])] || tens[n[3][0]] + words[n[3][1]]) + 'THOUSAND ' : '';
+            str += (n[4] != 0) ? (words[Number(n[4])] || tens[n[4][0]] + words[n[4][1]]) + 'HUNDRED ' : '';
+            str += (n[5] != 0) ? ((str != '') ? 'AND ' : '') + (words[Number(n[5])] || tens[n[5][0]] + words[n[5][1]]) : '';
+            return str.trim() + ' RUPEES ONLY';
+        }
+
+        function updateValues() {
+            let invDate = document.getElementById('invDate').value;
+            let invNo = document.getElementById('invNo').value;
+            let billTo = document.getElementById('billTo').value;
+            let deliveryAt = document.getElementById('deliveryAt').value;
+            let lorryNo = document.getElementById('lorryNo').value;
+
+            document.getElementById('p_date').innerText = invDate;
+            document.getElementById('p_invNo').innerText = invNo;
+            document.getElementById('p_billTo').innerText = billTo;
+            document.getElementById('p_deliveryAt').innerText = deliveryAt;
+            document.getElementById('p_lorryNo').innerText = lorryNo;
+
+            let itemRows = document.querySelectorAll('.item-row');
+            let tbodyHTML = '';
+            let subTotalAmount = 0;
+
+            itemRows.forEach((row, index) => {
+                let name = row.querySelector('.item-name').value;
+                let hsn = row.querySelector('.item-hsn').value;
+                let pcs = parseFloat(row.querySelector('.item-pcs').value) || 0;
+                let rate = parseFloat(row.querySelector('.item-rate').value) || 0;
+                let amount = pcs * rate;
+
+                subTotalAmount += amount;
+
+                tbodyHTML += `
+                    <tr>
+                        <td style="border-right: 1px solid #000; border-bottom: 1px solid #000; text-align: center; padding: 6px; vertical-align: top;">${index + 1}</td>
+                        <td style="border-right: 1.5px solid #000; border-bottom: 1px solid #000; padding: 6px; vertical-align: top;">${name}</td>
+                        <td style="border-right: 1.5px solid #000; border-bottom: 1.5px solid #000; text-align: center; padding: 6px; vertical-align: top;">${hsn}</td>
+                        <td style="border-right: 1.5px solid #000; border-bottom: 1.5px solid #000; text-align: center; padding: 6px; vertical-align: top;">${pcs}</td>
+                        <td style="border-right: 1.5px solid #000; border-bottom: 1.5px solid #000; text-align: center; padding: 6px; vertical-align: top;">${rate.toFixed(2)}</td>
+                        <td style="border-bottom: 1px solid #000; text-align: right; padding: 6px; vertical-align: top;">${amount.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('p_itemsTableBody').innerHTML = tbodyHTML;
+
+            let igst = subTotalAmount * 0.05;
+            let grandTotal = Math.round(subTotalAmount + igst);
+
+            document.getElementById('p_subTotal').innerText = subTotalAmount.toFixed(2);
+            document.getElementById('p_igst').innerText = igst.toFixed(2);
+            document.getElementById('p_grandTotal').innerText = (subTotalAmount + igst).toFixed(2);
+
+            let wordsText = convertNumberToWords(grandTotal);
+            document.getElementById('p_rupeesWords').innerText = wordsText;
+        }
+
+        function getSavedInvoices() {
+            let data = localStorage.getItem('suraj_invoices');
+            return data ? JSON.parse(data) : [];
+        }
+
+        function saveInvoiceToApp() {
+            let invNo = document.getElementById('invNo').value;
+            let invDate = document.getElementById('invDate').value;
+            let billTo = document.getElementById('billTo').value;
+            let deliveryAt = document.getElementById('deliveryAt').value;
+            let lorryNo = document.getElementById('lorryNo').value;
+            
+            let items = [];
+            document.querySelectorAll('.item-row').forEach(row => {
+                items.push({
+                    name: row.querySelector('.item-name').value,
+                    hsn: row.querySelector('.item-hsn').value,
+                    pcs: row.querySelector('.item-pcs').value,
+                    rate: row.querySelector('.item-rate').value
+                });
+            });
+
+            let subTotal = document.getElementById('p_subTotal').innerText;
+            let grandTotal = document.getElementById('p_grandTotal').innerText;
+
+            let invoiceData = {
+                id: Date.now(),
+                invNo, invDate, billTo, deliveryAt, lorryNo, items, subTotal, grandTotal
+            };
+
+            let invoices = getSavedInvoices();
+            let index = invoices.findIndex(i => i.invNo === invNo);
+            if(index >= 0) {
+                invoices[index] = invoiceData;
+            } else {
+                invoices.unshift(invoiceData);
+            }
+
+            localStorage.setItem('suraj_invoices', JSON.stringify(invoices));
+            updateInvoiceCount();
+            alert('Invoice saved successfully!');
+            switchTab('history');
+        }
+
+        function updateInvoiceCount() {
+            let invoices = getSavedInvoices();
+            document.getElementById('invoiceCount').innerText = invoices.length;
+        }
+
+        function renderSavedInvoices() {
+            let invoices = getSavedInvoices();
+            let container = document.getElementById('savedInvoicesList');
+            
+            if (invoices.length === 0) {
+                container.innerHTML = `<p class="text-center text-gray-500 py-4 text-sm">No saved invoices yet.</p>`;
+                return;
+            }
+
+            let html = '';
+            invoices.forEach(inv => {
+                let firstCustomerLine = inv.billTo.split('\n')[0];
+                html += `
+                    <div class="p-3 bg-gray-50 border rounded-lg flex justify-between items-center text-sm">
+                        <div>
+                            <p class="font-bold text-gray-800">Inv #${inv.invNo} - <span class="text-blue-600">${firstCustomerLine}</span></p>
+                            <p class="text-xs text-gray-500">Date: ${inv.invDate} | Total: ₹${inv.grandTotal}</p>
+                        </div>
+                        <div class="space-x-1">
+                            <button onclick="loadInvoice(${inv.id})" class="bg-blue-500 text-white px-2.5 py-1 text-xs rounded hover:bg-blue-600">Open</button>
+                            <button onclick="deleteInvoice(${inv.id})" class="bg-red-500 text-white px-2.5 py-1 text-xs rounded hover:bg-red-600">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function loadInvoice(id) {
+            let invoices = getSavedInvoices();
+            let inv = invoices.find(i => i.id === id);
+            if(!inv) return;
+
+            document.getElementById('invNo').value = inv.invNo;
+            document.getElementById('invDate').value = inv.invDate;
+            document.getElementById('billTo').value = inv.billTo;
+            document.getElementById('deliveryAt').value = inv.deliveryAt;
+            document.getElementById('lorryNo').value = inv.lorryNo;
+
+            let container = document.getElementById('itemsContainer');
+            container.innerHTML = '';
+
+            inv.items.forEach(item => {
+                let rowHTML = `
+                    <div class="item-row p-3 bg-gray-50 border rounded-lg relative space-y-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600">Particulars (Select Item)</label>
+                            <select class="item-name w-full p-1.5 border rounded text-sm bg-white" onchange="updateValues()">
+                                <option value="HEAVY WET GOAT SKIN" ${item.name === 'HEAVY WET GOAT SKIN' ? 'selected' : ''}>HEAVY WET GOAT SKIN</option>
+                                <option value="MEDIUM GOAT SKIN" ${item.name === 'MEDIUM GOAT SKIN' ? 'selected' : ''}>MEDIUM GOAT SKIN</option>
+                                <option value="LIGHT GOAT SKIN" ${item.name === 'LIGHT GOAT SKIN' ? 'selected' : ''}>LIGHT GOAT SKIN</option>
+                                <option value="RAW SHEEP SKIN" ${item.name === 'RAW SHEEP SKIN' ? 'selected' : ''}>RAW SHEEP SKIN</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-4 gap-2">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600">HSN Code</label>
+                                <input type="text" class="item-hsn w-full p-1.5 border rounded text-sm" value="${item.hsn}" oninput="updateValues()">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600">PCS</label>
+                                <input type="number" class="item-pcs w-full p-1.5 border rounded text-sm" value="${item.pcs}" oninput="updateValues()">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600">Rate (₹)</label>
+                                <input type="number" class="item-rate w-full p-1.5 border rounded text-sm" value="${item.rate}" oninput="updateValues()">
+                            </div>
+                            <div class="flex items-end">
+                                <button type="button" onclick="removeItemRow(this)" class="w-full bg-red-500 text-white p-1.5 text-xs rounded hover:bg-red-600">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', rowHTML);
+            });
+
+            switchTab('form');
+            updateValues();
+        }
+
+        function deleteInvoice(id) {
+            if(!confirm('Are you sure you want to delete this saved invoice?')) return;
+            let invoices = getSavedInvoices();
+            invoices = invoices.filter(i => i.id !== id);
+            localStorage.setItem('suraj_invoices', JSON.stringify(invoices));
+            updateInvoiceCount();
+            renderSavedInvoices();
+        }
+
+        window.onload = function() {
+            updateInvoiceCount();
+            updateValues();
+        };
+
+        function printInvoice() {
+            updateValues();
+            window.print();
+        }
+
+        // Direct Download PDF using jsPDF and html2canvas
+        function downloadPDF() {
+            updateValues();
+            let element = document.getElementById('invoicePreviewBox');
+            
+            // Options to make it high quality
+            let options = {
+                scale: 2,
+                useCORS: true
+            };
+
+            html2canvas(element, options).then((canvas) => {
+                let imgData = canvas.toDataURL('image/png');
+                let { jsPDF } = window.jspdf;
+                let pdf = new jsPDF('p', 'mm', 'a4');
+                
+                let imgWidth = 210; // A4 size width in mm
+                let pageHeight = 295; // A4 size height in mm
+                let imgHeight = (canvas.height * imgWidth) / canvas.width;
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+
+                while (heightLeft >= 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+
+                let invNoClean = document.getElementById('invNo').value.replace(/\//g, '-');
+                pdf.save(`Invoice_${invNoClean}.pdf`);
+            });
+        }
+    </script>
+</body>
+</html>
