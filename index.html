@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Suraj Leather - Invoice App</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Include jsPDF and html2canvas for direct downloading -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -500,24 +499,18 @@ VANIYAMBADI TAMILNADU - 635751</span>
             window.print();
         }
 
-        // Direct Download PDF using jsPDF and html2canvas
         function downloadPDF() {
             updateValues();
             let element = document.getElementById('invoicePreviewBox');
-            
-            // Options to make it high quality
-            let options = {
-                scale: 2,
-                useCORS: true
-            };
+            let options = { scale: 2, useCORS: true };
 
             html2canvas(element, options).then((canvas) => {
                 let imgData = canvas.toDataURL('image/png');
                 let { jsPDF } = window.jspdf;
                 let pdf = new jsPDF('p', 'mm', 'a4');
                 
-                let imgWidth = 210; // A4 size width in mm
-                let pageHeight = 295; // A4 size height in mm
+                let imgWidth = 210;
+                let pageHeight = 295;
                 let imgHeight = (canvas.height * imgWidth) / canvas.width;
                 let heightLeft = imgHeight;
                 let position = 0;
